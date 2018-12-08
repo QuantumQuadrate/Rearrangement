@@ -1,0 +1,55 @@
+import roigenerator as rg
+
+def get_rois(image_shape, x0, y0,row_offset_x, row_offset_y, spacing, 
+              grid_angle, amplitude,wx, wy, spot_angle, blacklevel):
+    """Create a set of ROI masks from the fit parameters.
+    
+    Arguments:
+    image_shape -- tuple specifying the dimension of the desired mask arrays
+    x0 -- int specifying the x index of the topleft-most gaussian center
+    y0 -- int specifying the y index of the topleft-most gaussian center
+    row_offset_x -- offset for x index of leftmost gaussian center in a row 
+    compared to previous row
+    row_offset_y -- offset for y index of the leftmost gaussian center in a row 
+    compared to previous row
+    spacing -- index difference between gaussian centers within a row
+    grid_angle -- rotates the grid of gaussians about the topleft-most gaussian 
+    center
+    amplitude -- In principle, the amplitude of the gaussians but is treated as 
+    1 (does not affect output)
+    wx -- beamwaist in the x direction
+    wy -- beamwaist in the y direction
+    spot_angle -- rotation angle for each gaussian beam about its center
+    blacklevel -- background level (has no effect on output)
+    
+    Returns -- np array with shape=(image_shape[0]*image[shape[1],columns*rows)
+    """
+    xy = np.indices(image_shape)
+    # sum up the contribution of each gaussian to the total
+    xy0 = np.array([[[x0]], [[y0]]])
+    xy_offset = np.array([[[row_offset_x]], [[row_offset_y]]])
+    width = np.array([[[wx]], [[wy]]])
+    spots = np.empty((
+        11*11,
+        image_shape[0] * image_shape[1]
+    ))
+    i = 0
+    for r in xrange(11):
+        for c in xrange(11):
+            xy0i = xy0 + np.tensordot(
+                rg.rotation(grid_angle),
+                np.array([[[r]], [[c]]]),
+                axes=1
+            ) * spacing + np.remainder(r,2)*xy_offset
+
+            spots[i] = rg.gaussian(
+                1,
+                width,
+                spot_angle,
+                xy0i,
+                xy
+            ).flatten()
+            i += 1
+    #Comment this line out for normal masks. This turns the mask into a binary mask
+    spots = np.greater_equal(spots,0.7).astype(np.float32)
+    return spots
