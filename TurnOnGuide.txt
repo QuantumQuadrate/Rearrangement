@@ -4,13 +4,14 @@ Turn on Procedure:
 * Plug the power into the box.
 
 2) The Teensys
-* Now we upload the Teensy sketches. I recommend setting the clock to 120MHz and the code speed to ìfastestî. These options are in the same tab as the board selection tab. 
-* Upload an Arduino sketch called intensityboard.ino to a Teensy 3.5 on COM 12. The board selection tab will show a Teensy Serial on COM11 and just a Teensy on COM11. Iíve been uploading the Serial one but as far as I can tell there isnít any effect on performance.
-* Upload an Arduino sketch called positionboard.ino to a Teensy 3.5 on COM 11.
+* Now we upload the Teensy sketches. I recommend setting the clock to 120MHz and the code speed to ‚Äúfastest‚Äù. These options are in the same tab as the board selection tab. 
+* Upload an Arduino sketch called intensityboard.ino to a Teensy 3.5 on COM 12 (Or whatever port you have it connected to). The board selection tab will show a Teensy Serial on the port and just a Teensy on same port. I‚Äôve been uploading the Serial one but as far as I can tell there isn‚Äôt any effect on performance.
+* Upload an Arduino sketch called positionboard.ino to a Teensy 3.5 on COM 11 (Or whatever port you have it connected to).
 * If you need to reupload a sketch to the Teensys, you will need to kill the Flask server to free the COM ports. You can do this with a CTRL+C command in the terminal that the server is running in.
 * If it ever seems like the Teensy boards are doing nothing because they are stalled, press the reset button on the box. You will have to reupload the Arduino settings request to give them that information again.
 
 3) Flask Server
+* The ports that the Teensy boards are connected to are hardcoded into the rearrangementServer.py file. They will need to be adjusted before starting the program.
 * Now we turn on the flask webserver. Navigate to the folder containing the python file for the server in an anaconda prompt and enter the following two commands:
 * set FLASK_APP=rearrangementServer.py
 * flask run --host=0.0.0.0
