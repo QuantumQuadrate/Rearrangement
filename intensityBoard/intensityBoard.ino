@@ -15,8 +15,8 @@ int    laser_intensity_time;
 double microsPerWrite;
 bool   writeValue;
 bool   readValue;
-int highramp = 2048;
-int lowramp = 384;
+int highramp = 4095;
+int lowramp = 1024;
 int diff = highramp-lowramp;
 
 
