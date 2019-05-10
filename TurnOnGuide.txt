@@ -4,26 +4,40 @@ Turn on Procedure:
 * Plug the power into the box.
 
 2) The Teensys
-* Now we upload the Teensy sketches. I recommend setting the clock to 120MHz and the code speed to “fastest”. These options are in the same tab as the board selection tab. 
-* Upload an Arduino sketch called intensityboard.ino to a Teensy 3.5 on COM 12 (Or whatever port you have it connected to). The board selection tab will show a Teensy Serial on the port and just a Teensy on same port. I’ve been uploading the Serial one but as far as I can tell there isn’t any effect on performance.
-* Upload an Arduino sketch called positionboard.ino to a Teensy 3.5 on COM 11 (Or whatever port you have it connected to).
-* If you need to reupload a sketch to the Teensys, you will need to kill the Flask server to free the COM ports. You can do this with a CTRL+C command in the terminal that the server is running in.
-* If it ever seems like the Teensy boards are doing nothing because they are stalled, press the reset button on the box. You will have to reupload the Arduino settings request to give them that information again.
+* Now we upload the Teensy sketches. I recommend setting the clock to 120MHz and the code speed to “fastest”.
+These options are in the same tab as the board selection tab. 
+* Upload an Arduino sketch called intensityboard.ino to a Teensy 3.5 on COM 12 (Or whatever port you have it connected to).
+The board selection tab will show a Teensy Serial on the port and just a Teensy on same port.
+I’ve been uploading the Serial one but as far as I can tell there isn’t any effect on performance.
+* Upload an Arduino sketch called positionboard.ino to a Teensy 3.5 on COM 11 (Or whatever port you have it connected to). 
+The size of the atom array is hardcoded into this program because it must be known at compile time. T
+he current default is 11x11 but adjust it as you change your target array size.
+* If you need to reupload a sketch to the Teensys, you will need to kill the Flask server to free the COM ports. 
+You can do this with a CTRL+C command in the terminal that the server is running in.
+* If it ever seems like the Teensy boards are doing nothing because they are stalled, press the reset button on the box. 
+You will have to reupload the Arduino settings request to give them that information again.
 
 3) Flask Server
-* The ports that the Teensy boards are connected to are hardcoded into the rearrangementServer.py file. They will need to be adjusted before starting the program.
-* Now we turn on the flask webserver. Navigate to the folder containing the python file for the server in an anaconda prompt and enter the following two commands:
+* The ports that the Teensy boards are connected to are hardcoded into the rearrangementServer.py file. 
+They will need to be adjusted before starting the program.
+* Now we turn on the flask webserver.
+Navigate to the folder containing the python file for the server in an anaconda prompt and enter the following two commands:
 * set FLASK_APP=rearrangementServer.py
 * flask run --host=0.0.0.0
-* Within a few seconds you should see output saying that its running on 0.0.0.0:5000. This indicates that the server can process requests.
-* You can kill the server with a CTRL+C command or via HTTP request. If the rearrangement version of the LabVIEW server is running when you do this, the requests it sends will time out and interrupt the continuous cycling of the experiment.
+* Within a few seconds you should see output saying that its running on 0.0.0.0:5000.
+This indicates that the server can process requests.
+* You can kill the server with a CTRL+C command or via HTTP request. 
+If the rearrangement version of the LabVIEW server is running when you do this, the requests it sends will time out and interrupt the continuous cycling of the experiment.
 
 4) LabVIEW
 * Turn on the version of the LabVIEW server that sends requests to the flask server. This can be found in the LABVIEW folder.
 
 5) Continuous Operation
-* Send the settings describing the lattice, desired pattern, etc. The information you send should be self-consistent. The content of the requests are described in the requests guide file in this repository. The two pages you need to send requests to are (substitute your target computers IP address as necessary):
+* Send the settings describing the lattice, desired pattern, etc. The information you send should be self-consistent. 
+The content of the requests are described in the requests guide file in this repository. 
+The two pages you need to send requests to are (substitute your target computers IP address as necessary):
 * http:10.0.0.2:5000/python_settings
 * http:10.0.0.2:5000/arduino_settings
-* Any time any of the settings updated by posting to those pages change, post another change (again be sure to be self-consistent). Lack of self-consistency will probably produce internal server errors (HTTP code 500).
+* Any time any of the settings updated by posting to those pages change, post another change (again be sure to be self-consistent). 
+Lack of self-consistency will probably produce internal server errors (HTTP code 500).
 
