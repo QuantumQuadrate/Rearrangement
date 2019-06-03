@@ -62,8 +62,8 @@ def get_rois(image_shape, x0, y0,row_offset_x, row_offset_y, spacing,
         image_shape[0] * image_shape[1]
     ))
     i = 0
-    for r in xrange(cache['rows']):
-        for c in xrange(cache['columns']):
+    for r in range(cache['rows']):
+        for c in range(cache['columns']):
             xy0i = xy0 + np.tensordot(
                 rg.rotation(grid_angle),
                 np.array([[[r]], [[c]]]),
@@ -265,7 +265,6 @@ def cameradatabinaryfile():
         #It would speed things up to send little endian from labview and read little endian instead of converting
         cam = np.fromstring(request.data,dtype='>H').astype('<H')
         inst = oracle.instructions(cam)
-        print inst
         sleep(0.001)
         positionBoard.sendString(inst)
         oracle.resetAssignmentData()
