@@ -40,15 +40,7 @@ struct move {
 		return (start != b.start || end != b.end);
 	};
 	std::string to_string() {
-		_itoa_s(start.y, buffer, 10);
-		std::string out = std::string(buffer) + ">";
-		_itoa_s(start.x, buffer, 10);
-		out += (std::string(buffer) + ">");
-		_itoa_s(end.y, buffer, 10);
-		out += (std::string(buffer) + ">");
-		_itoa_s(end.x, buffer, 10);
-		return (out + std::string(buffer) + ">");
-
+		return std::to_string(start.y)+">"+std::to_string(start.x)+">"+std::to_string(end.y)+">"std::to_string(end.x)+">";
 	};
 };
 
