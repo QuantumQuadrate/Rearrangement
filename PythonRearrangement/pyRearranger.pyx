@@ -14,29 +14,27 @@ from libcpp.string cimport string
 
 cdef extern from "../CPPrearrangement/Rearrangement.h":
     cdef cppclass Rearranger:
-        Rearranger() except + 
+        Rearranger() except +
         void resetAssignmentData()
-        void setPattern(int[], int, int, float[], float[], int, int, int)
-        string generateInstructionsCorner(unsigned short[])
-    
+        void setPattern(int[], int, int, int, int)
+        string generateInstructionsCorner(unsigned char[])
+
 
 cdef class pyRearranger:
     cdef Rearranger oracle
-    
+
     def __cinit__(self):
         self.oracle = Rearranger()
-    
+
     def resetAssignmentData(self):
         self.oracle.resetAssignmentData()
-    
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def setPattern(self, np.ndarray[int, ndim=1,mode="c"] pattern not None, int top, int left, np.ndarray[float,ndim=1,mode="c"] thresh not None, np.ndarray[float,ndim=1,mode="c"] mask not None, int width, int height, int camLength ):
-        self.oracle.setPattern(&pattern[0],top,left,&thresh[0],&mask[0],width,height,camLength)
-    
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def instructions(self, np.ndarray[unsigned short,ndim=1, mode="c"] camData not None):
-        return self.oracle.generateInstructionsCorner(&camData[0])
 
-   
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def setPattern(self, np.ndarray[int, ndim=1, mode="c"] pattern not None, int top, int left, int width, int height):
+        self.oracle.setPattern(&pattern[0], top, left, width, height)
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def instructions(self, np.ndarray[unsigned char, ndim=1, mode="c"] occupationVector not None):
+        return self.oracle.generateInstructionsCorner(&occupationVector[0])

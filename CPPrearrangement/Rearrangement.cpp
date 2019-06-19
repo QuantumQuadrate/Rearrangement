@@ -4,7 +4,7 @@
 
 #include "Rearrangement.h"
 #include <algorithm>
-//#include <iostream>
+#include <iostream>
 #include <cmath>
 #include <limits>
 //#include <fstream>
@@ -18,11 +18,9 @@
 Rearranger::Rearranger() {
 	this->top = 0;
 	this->left = 0;
-	this->camSize = 0;
 	this->xdim = 0;
 	this->ydim = 0;
 	this->numAtoms = 0;
-	this->maskLength = 0;
 	this->costRows = 0;
 	this->costCols = 0;
 }
@@ -30,7 +28,7 @@ Rearranger::Rearranger() {
 Rearranger::~Rearranger() {
 }
 
-void Rearranger::setPattern(int pattern[], int top, int left, float thresh[], float mask[], int width, int height, int camLength) {
+void Rearranger::setPattern(int pattern[], int top, int left, int width, int height) {
 	/*
 	Reset all relevant variables for performing rearrangement to be compatible with the new provided architecture.
 	All variables that can be computed prior to receiving camera data are dealt with here.
@@ -41,31 +39,26 @@ void Rearranger::setPattern(int pattern[], int top, int left, float thresh[], fl
 	Anything else means we don't want an atom at a site.
 	int top -- The y coordinate for the top-left corner of the region that we perform rearrangement in
 	int left -- the x coordinate for the top-left corner of the region that we perform rearrangement in
-	float thresh[] -- Thresholds to be used to determine atom occupancy
-	float mask[] -- Masks to be used to determine atom occupancy
 	int width -- How many atoms wide (x dimension) is the region we are performing matching in
 	int height -- How many atoms tall (y dimension) is the region we are performing matching in
-	int camLength -- The number of camera pixels we will recieve to determine atom occupancy
 	*/
 
 	//Assign all the values describing the geometry of the problem and the size of the incoming camera data
 	this->top = top;
 	this->left = left;
-	this->camSize = camLength;
 	this->xdim = width;
 	this->ydim = height;
 	this->numAtoms = width * height;
-	this->maskLength = this->numAtoms*camLength;
+	std::cout << top << ' ' << left << ' ' << width << ' ' << height << std::endl;
 
 	//Empty and refill pre-computable pattern information
 	clearPatternMemory();
 	reservePatternMemory();
-	//Populate the precomputable vectors
+	//Populate the pre-computable vectors
 	int index = 0;
 	for (int r = 0; r < this->ydim; ++r) {
 		for (int c = 0; c < this->xdim; ++c) {
 			this->pattern.push_back(pattern[index]);
-			this->thresholds.push_back(thresh[index]);
 			switch (pattern[index]) {
 			case 1:
 			{
@@ -86,10 +79,6 @@ void Rearranger::setPattern(int pattern[], int top, int left, float thresh[], fl
 			index += 1;
 		}
 	}
-	for (int ind = 0; ind < maskLength; ++ind) {
-		this->masks.push_back(mask[ind]);
-	}
-
 	//Reset pre-computable assignment information
 	resetAssignmentData();
 }
@@ -103,8 +92,6 @@ void Rearranger::clearPatternMemory() {
 	this->badSites.clear();
 	this->pattern.clear();
 	this->occupiedCoords.clear();
-	this->thresholds.clear();
-	this->masks.clear();
 }
 
 void Rearranger::reservePatternMemory() {
@@ -117,18 +104,6 @@ void Rearranger::reservePatternMemory() {
 	this->badSites.reserve(this->numAtoms);
 	this->pattern.reserve(this->numAtoms);
 	this->occupiedCoords.reserve(this->numAtoms);
-	this->thresholds.reserve(this->numAtoms);
-	this->masks.reserve(this->maskLength);
-}
-
-float Rearranger::square(int x) {
-	/*Return the square of an integer as a floating point variable
-	Arguments:
-	int x -- The variable we want to square
-	Returns:
-	The square of the given argument as a floating point value
-	*/
-	return float(x*x);
 }
 
 void Rearranger::resetAssignmentData() {
@@ -150,26 +125,33 @@ void Rearranger::resetAssignmentData() {
 	this->isCoveredRow.resize(costRows, false);
 }
 
-std::string Rearranger::generateInstructionsCorner(unsigned short cameraData[]) {
-	/*
-	Given an array containing the camera data, return string formatted to describe rearrangement instructions.
-	Strings are formatted as follows:
-	u>Number of moves>Starty>Startx>Endy>Endx>......
-	So an example string would be
-	u>2>1>2>3>3>6>6>-1>-1>
-	The 2 after the u indicates that there are two moves the microcontroller has to perform.
-	This first move sends site (1,2) to (3,3)
-	The second move ends in (-1,-1) which signals that the microcontroller should eject this atom from the array.
-	All ejection moves are done after the normal movement-based moves.
-	Arguments:
-	unsigned short cameraData[]:
-	camera pixel counts measuring atom flourescence
-	Returns:
-	std::string formatted as described above to encode rearrangement instructions for the microcontroller
-	*/
+std::string Rearranger::generateInstructionsCorner(uint8_t occupationVector[]) {
+  /*
+  Given an array containing the 1D array occupation vector, return string formatted to describe rearrangement instructions.
+  Strings are formatted as follows:
+  u>Number of moves>Starty>Startx>Endy>Endx>......
+  So an example string would be
+  u>2>1>2>3>3>6>6>-1>-1>
+  The 2 after the u indicates that there are two moves the microcontroller has to perform.
+  This first move sends site (1,2) to (3,3)
+  The second move ends in (-1,-1) which signals that the microcontroller should eject this atom from the array.
+  All ejection moves are done after the normal movement-based moves.
+  Arguments:
+  unsigned short cameraData[]:
+  camera pixel counts measuring atom flourescence
+  Returns:
+  std::string formatted as described above to encode rearrangement instructions for the microcontroller
+  */
 
-	//Populate the occupiedCoords vector with locations of atoms
-	occupation(cameraData);
+  int index = 0;
+  for (int r = 0; r < ydim; ++r) {
+    for (int c = 0; c < xdim; ++c) {
+      if (occupationVector[index] > 0) {
+        this->occupiedCoords.push_back(coordinate(r + this->top, c + this->left));
+      }
+      index++;
+    }
+  }
 
 	//Initialize the remaining Hungairan Matching Algorithm data 
 	costCols = occupiedCoords.size();
@@ -182,8 +164,8 @@ std::string Rearranger::generateInstructionsCorner(unsigned short cameraData[]) 
 	//Cost Function used is ( (x1-x2)^2 + (y1-y2)^2 )^1.01
 	//The reason this isn't the normal Euclidean distance or Taxi-Cab distance is to
 	//Favor certain special cases over others which should improve movement time
-	for (int r = 0; r < costRows; ++r) {
-		for (int c = 0; c < costCols; ++c) {
+	for (size_t r = 0; r < costRows; ++r) {
+		for (size_t c = 0; c < costCols; ++c) {
 			cost.push_back(std::pow(std::pow(std::abs(occupiedCoords[c].x - desiredSites[r].x),1.001f) + std::pow(std::abs(occupiedCoords[c].y - desiredSites[r].y),1.001f), 1.01f));
 		}
 	}
@@ -197,7 +179,7 @@ std::string Rearranger::generateInstructionsCorner(unsigned short cameraData[]) 
 	}
 
 	//Extract list of moves to be served from the matching
-	for (int c = 0; c < costCols; ++c) {
+	for (size_t c = 0; c < costCols; ++c) {
 		//Check if this atom has been given a task and that the task isn't to stay still
 		if (starredRowInCol[c] > -1 && occupiedCoords[c] != desiredSites[starredRowInCol[c]]) {
 			moves.push_back(move(occupiedCoords[c], desiredSites[starredRowInCol[c]]));
@@ -208,33 +190,6 @@ std::string Rearranger::generateInstructionsCorner(unsigned short cameraData[]) 
 	return orderMovesCorner();
 }
 
-void Rearranger::occupation(unsigned short cameraData[]) {
-	/*
-	Given an array of camera data, determine which sites are occupied in the lattice
-	Each site that is found to be loaded is added to the occupiedCoords vector
-	Arguments:
-	unsigned short cameraData[]:
-	camera pixel counts measuring atom flourescence
-	*/
-	float innerProduct;
-	int maskIndex = 0;
-	int atom = 0;
-	for (int row = 0; row < this->ydim; ++row) {
-		for (int col = 0; col < this->xdim; ++col)
-		{
-			innerProduct = 0;
-			for (int camIndex = 0; camIndex < this->camSize; ++camIndex) {
-				innerProduct += cameraData[camIndex] * this->masks[maskIndex];
-				maskIndex += 1;
-			}
-			if (innerProduct > this->thresholds[atom]) {
-				this->occupiedCoords.push_back(coordinate(row + this->top, col + this->left));
-			}
-			atom += 1;
-		}
-	}
-}
-
 void Rearranger::step0() {
 	/*
 	Step 0:
@@ -243,14 +198,14 @@ void Rearranger::step0() {
 	Step 2
 	*/
 	float minimum;
-	for (int c = 0; c < costCols; ++c) {
+	for (size_t c = 0; c < costCols; ++c) {
 		minimum = cost[c];
-		for (int r = 0; r < costRows; ++r) {
+		for (size_t r = 0; r < costRows; ++r) {
 			if (minimum > cost[r*costCols + c]) {
 				minimum = cost[r*costCols + c];
 			}
 		}
-		for (int r = 0; r < costRows; ++r) {
+		for (size_t r = 0; r < costRows; ++r) {
 			cost[r*costCols + c] -= minimum;
 		}
 	}
@@ -267,16 +222,16 @@ void Rearranger::step1() {
 	float minimum;
 	int costSize = costRows * costCols;
 	//Iterate over each row with the costCols stride due to the 1D array storage
-	for (int rowStart = 0; rowStart < costSize; rowStart += costCols) {
+	for (size_t rowStart = 0; rowStart < costSize; rowStart += costCols) {
 		minimum = cost[rowStart];
 		//Identify the minimum value in the row
-		for (int c = 0; c < costCols; ++c) {
+		for (size_t c = 0; c < costCols; ++c) {
 			if (minimum > cost[rowStart + c]) {
 				minimum = cost[rowStart + c];
 			}
 		}
 		//Subtract the minimum value in the row from each value in the row
-		for (int c = 0; c < costCols; ++c) {
+		for (size_t c = 0; c < costCols; ++c) {
 			cost[rowStart + c] -= minimum;
 		}
 
@@ -294,8 +249,8 @@ void Rearranger::step2() {
 	Step 3
 	*/
 	int costIndex = 0;
-	for (int r = 0; r < costRows; ++r) {
-		for (int c = 0; c < costCols; ++c) {
+	for (size_t r = 0; r < costRows; ++r) {
+		for (size_t c = 0; c < costCols; ++c) {
 			if (cost[costIndex] == 0) {
 				if (starredColInRow[r] == -1 && starredRowInCol[c] == -1) {
 					starredRowInCol[c] = r;
@@ -316,9 +271,9 @@ void Rearranger::step3() {
 	Go To:
 	Step 4
 	*/
-	int cov_count = 0;
-	for (int r = 0; r < costRows; ++r) {
-		for (int c = 0; c < costCols; ++c) {
+  size_t cov_count = 0;
+	for (size_t r = 0; r < costRows; ++r) {
+		for (size_t c = 0; c < costCols; ++c) {
 			if (starredRowInCol[c] == r) {
 				isCoveredCol[c] = true;
 				cov_count += 1;
@@ -405,11 +360,11 @@ void Rearranger::step5(int row, int col) {
 	}
 
 	//Unprime and Uncover everything
-	for (int r = 0; r < costRows; ++r) {
+	for (size_t r = 0; r < costRows; ++r) {
 		primedColInRow[r] = -1;
 		isCoveredRow[r] = false;
 	}
-	for (int c = 0; c < costCols; ++c) {
+	for (size_t c = 0; c < costCols; ++c) {
 		isCoveredCol[c] = false;
 	}
 	step3();
@@ -426,8 +381,8 @@ void Rearranger::step6() {
 	*/
 	float min = std::numeric_limits<float>::infinity();
 	int costIndex = 0;
-	for (int r = 0; r < costRows; ++r) {
-		for (int c = 0; c < costCols; ++c) {
+	for (size_t r = 0; r < costRows; ++r) {
+		for (size_t c = 0; c < costCols; ++c) {
 			if (!(isCoveredRow[r] || isCoveredCol[c])) {
 				if (cost[costIndex] < min) {
 					min = cost[costIndex];
@@ -437,20 +392,20 @@ void Rearranger::step6() {
 		}
 	}
 
-	for (int r = 0; r < costRows; ++r) {
+	for (size_t r = 0; r < costRows; ++r) {
 		costIndex = r * costCols;
 		if (isCoveredRow[r]) { //covered row
-			for (int c = 0; c < costCols; ++c) {
+			for (size_t c = 0; c < costCols; ++c) {
 				cost[costIndex] += min;
 				costIndex += 1;
 			}
 		}
 	}
 
-	for (int c = 0; c < costCols; ++c) {
+	for (size_t c = 0; c < costCols; ++c) {
 		costIndex = c;
 		if (!isCoveredCol[c]) { // uncovered column
-			for (int r = 0; r < costRows; ++r) {
+			for (size_t r = 0; r < costRows; ++r) {
 				cost[costIndex] -= min;
 				costIndex += costCols;
 			}
@@ -469,8 +424,8 @@ bool Rearranger::find_zero(int* row, int* col) {
 	bool that is true if an uncovered zero was found and false otherwise
 	*/
 	int costIndex = 0;
-	for (int r = 0; r < costRows; ++r) {
-		for (int c = 0; c < costCols; ++c) {
+	for (size_t r = 0; r < costRows; ++r) {
+		for (size_t c = 0; c < costCols; ++c) {
 			if (cost[costIndex] == 0) {
 				if (!(isCoveredRow[r] || isCoveredCol[c])) {
 					*row = r;
@@ -558,7 +513,6 @@ std::string Rearranger::orderMoves() {
 			}
 			testMove++;
 		}
-
 	}
 	return directions;
 }
@@ -589,62 +543,6 @@ bool Rearranger::coordInMovesWay(move path, coordinate coord) {
 	return false;
 }
 
-///*
 int main() {
 	return 0;
 }
-//*/
-
-/*
-int main() {
-//using namespace rearrangement;
-int pattern[] = { 2,2,2,2,2,2,2,   2,0,0,0,0,0,2, 2,0,1,1,1,0,2, 2,0,1,1,1,0,2, 2,0,1,1,1,0,2, 2,0,0,0,0,0,2, 2,2,2,2,2,2,2};
-int top = 0;
-int left = 0;
-int width = 7;
-int height = 7;
-int camlength = 49;
-unsigned short cam[] =      { 0,0,1,0,0,0,0,  1,1,1,0,0,1,0,  1,0,0,0,1,0,1,  0,0,1,0,0,0,1, 1,1,0,1,0,0,0, 1,1,0,1,1,1,1, 0,0,1,0,0,1,0 };
-float thresh[] = { 1,1,1,1,1,1,1,  1,1,1,1,1,1,1,  1,1,1,1,1,1,1,  1,1,1,1,1,1,1, 1,1,1,1,1,1,1, 1,1,1,1,1,1,1, 1,1,1,1,1,1,1 };
-float mask[2401];
-for (int index = 0; index < 2401; ++index) {
-if (index % 50 == 0) mask[index] = 2;
-else mask[index] = 0;
-}
-Rearranger reeee;
-std::string out;
-int repetitions = 10000;
-reeee.setPattern(pattern, top, left, thresh, mask, width, height, camlength);
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::milliseconds ms;
-typedef std::chrono::duration<float> fsec;
-auto t0 = Time::now();
-for (int i = 0; i < repetitions; ++i) {
-reeee.generateInstructionsCorner(cam);
-reeee.resetAssignmentData();
-}
-auto t1 = Time::now();
-fsec fs = t1 - t0;
-std::cout << fs.count() / repetitions << std::endl;
-std::cout << reeee.generateInstructionsCorner(cam) << std::endl;
-reeee.resetAssignmentData();
-
-int pattern2[] = { 2, 1,   2, 1 };
-width = 2;
-height = 2;
-camlength = 4;
-unsigned short cam2[] = { 0,0,1,1 };
-float thresh2[] = { 1,1,1,1 };
-float mask2[16];
-for (int index = 0; index < 16; ++index) {
-if (index % 5 == 0) mask2[index] = 2;
-else mask2[index] = 0;
-}
-
-reeee.setPattern(pattern2, top, left, thresh2, mask2, width, height, camlength);
-std::cout << reeee.generateInstructionsCorner(cam2) << std::endl;
-reeee.resetAssignmentData();
-
-return 0;
-}
-*/
